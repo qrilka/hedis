@@ -12,7 +12,9 @@ module Database.Redis.Core (
 
 import Prelude
 import Control.Applicative
+import Control.Exception (evaluate)
 import Control.Monad.Reader
+import Control.Monad.Writer
 import qualified Data.ByteString as B
 import Data.Pool
 import Data.Time
@@ -32,7 +34,7 @@ import Database.Redis.Types
 --
 --  In this context, each result is wrapped in an 'Either' to account for the
 --  possibility of Redis returning an 'Error' reply.
-newtype Redis a = Redis (ReaderT (PP.Connection Reply) IO a)
+newtype Redis a = Redis (ReaderT (PP.Connection Reply) (WriterT (Last Reply) IO) a)
     deriving (Monad, MonadIO, Functor, Applicative)
 
 -- |This class captures the following behaviour: In a context @m@, a command
@@ -64,7 +66,10 @@ runRedis (Conn pool) redis =
 -- |Internal version of 'runRedis' that does not depend on the 'Connection'
 --  abstraction. Used to run the AUTH command when connecting. 
 runRedisInternal :: PP.Connection Reply -> Redis a -> IO a
-runRedisInternal env (Redis redis) = runReaderT redis env
+runRedisInternal env (Redis redis) = do
+  (r, lastReply) <- runWriterT $ runReaderT redis env
+  void $ traverse evaluate $ getLast lastReply
+  return r
 
 
 recv :: (MonadRedis m) => m Reply
@@ -90,7 +95,9 @@ sendRequest :: (RedisCtx m f, RedisResult a)
 sendRequest req = do
     r <- liftRedis $ Redis $ do
         conn <- ask
-        liftIO $ PP.request conn (renderRequest req)
+        reply <- liftIO $ PP.request conn (renderRequest req)
+        tell (Last (Just reply))
+        return reply
     returnDecode r
 
 

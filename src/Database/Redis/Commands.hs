@@ -114,6 +114,7 @@ dbsize, -- |Return the number of keys in the selected database (<http://redis.io
 debugObject, -- |Get debugging information about a key (<http://redis.io/commands/debug-object>).
 flushall, -- |Remove all keys from all databases (<http://redis.io/commands/flushall>).
 flushdb, -- |Remove all keys from the current database (<http://redis.io/commands/flushdb>).
+InfoSection(..),
 info, -- |Get information and statistics about the server (<http://redis.io/commands/info>). The Redis command @INFO@ is split up into 'info', 'infoSection'.
 infoSection, -- |Get information and statistics about the server (<http://redis.io/commands/info>). The Redis command @INFO@ is split up into 'info', 'infoSection'.
 lastsave, -- |Get the UNIX time stamp of the last successful save to disk (<http://redis.io/commands/lastsave>).

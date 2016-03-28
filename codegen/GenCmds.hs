@@ -100,7 +100,9 @@ blacklist = [ manual "AUTH" ["auth"]
                 ["DebugMode"]
             , manual "SRANDMEMBER" ["srandmember", "srandmemberN"]
             , manual "SPOP" ["spop"]
-            , manual "INFO" ["info", "infoSection"]
+            , manualWithType "INFO"
+                ["info", "infoSection"]
+                ["InfoSection(..)"]
             , manual "EXISTS" ["exists"]
             , unimplemented "COMMAND"
             , unimplemented "COMMAND GETKEYS"

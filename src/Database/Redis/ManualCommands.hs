@@ -1,9 +1,13 @@
-{-# LANGUAGE OverloadedStrings, RecordWildCards, FlexibleContexts #-}
+{-# LANGUAGE OverloadedStrings, RecordWildCards, FlexibleContexts, FlexibleInstances #-}
 
 module Database.Redis.ManualCommands where
 
 import Prelude hiding (min,max)
+import Control.Monad (void)
+import Data.Attoparsec.ByteString (takeTill)
+import Data.Attoparsec.ByteString.Char8 hiding (takeTill, count)
 import Data.ByteString (ByteString, empty)
+import Data.Char (ord)
 import Data.Maybe (maybeToList)
 import Database.Redis.Core
 import Database.Redis.Protocol
@@ -619,17 +623,37 @@ spop
     -> m (f (Maybe ByteString))
 spop key = sendRequest ["SPOP", key]
 
+data InfoSection = InfoSection
+  { isName       :: ByteString
+  , isProperties :: [(ByteString, ByteString)]
+  } deriving (Eq, Show)
+
+instance RedisResult [InfoSection] where
+  decode (Bulk (Just s)) = case parseOnly (parseInfoSection `sepBy1` endOfLine <* endOfInput) s of
+    Right r -> Right r
+    Left e  -> error ("Could not parse info section: " ++ e)
+  decode               r = Left r
+
+parseInfoSection :: Parser InfoSection
+parseInfoSection = do
+  void $ string "# "
+  isName <- takeTill isEndOfLine <* endOfLine
+  isProperties <- many' $ do
+    name <- takeTill (==(fromIntegral $ ord ':'))  <* char ':'
+    value <- takeTill isEndOfLine <* endOfLine
+    return (name, value)
+  return InfoSection{..}
 
 info
     :: (RedisCtx m f)
-    => m (f ByteString)
+    => m (f [InfoSection])
 info = sendRequest ["INFO"]
 
 
 infoSection
     :: (RedisCtx m f)
     => ByteString -- ^ section
-    -> m (f ByteString)
+    -> m (f [InfoSection])
 infoSection section = sendRequest ["INFO", section]
 
 

@@ -597,8 +597,8 @@ testSelect = testCase "select" $ do
 --
 testsServer :: [Test]
 testsServer =
-    [testServer, testBgrewriteaof, testFlushall, testInfo, testConfig
-    ,testSlowlog, testDebugObject]
+    [ testServer, testBgrewriteaof, testFlushall, testInfo, testInfoSection
+    , testConfig, testSlowlog, testDebugObject, testInfo]
 
 testServer :: Test
 testServer = testCase "server" $ do
@@ -627,12 +627,25 @@ testFlushall = testCase "flushall/flushdb" $ do
     flushall >>=? Ok
     flushdb  >>=? Ok
 
+assertRedisVersion :: [InfoSection] -> Redis ()
+assertRedisVersion sections = do
+    let serverSections = filter (\s -> isName s == "Server") sections
+    assert $ length serverSections == 1
+    let serverProperties = isProperties (head serverSections)
+    assert $ any((== "redis_version") . fst) serverProperties
+
 testInfo :: Test
 testInfo = testCase "info/lastsave/dbsize" $ do
-    Right _ <- info
+    Right sections <- info
+    assertRedisVersion sections
     Right _ <- lastsave
     dbsize          >>=? 0
     configResetstat >>=? Ok
+
+testInfoSection :: Test
+testInfoSection = testCase "info/lastsave/dbsize" $ do
+    Right sections <- infoSection "server"
+    assertRedisVersion sections
 
 testSlowlog :: Test
 testSlowlog = testCase "slowlog" $ do
